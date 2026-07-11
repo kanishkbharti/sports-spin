@@ -10,7 +10,10 @@ interface ShareSquadInput {
   players: DraftedPlayer[];
 }
 
-function buildShareText({ teamName, formation, players }: ShareSquadInput): string {
+function buildShareText(
+  { teamName, formation, players }: ShareSquadInput,
+  includeUrl: boolean
+): string {
   const rated = players.filter((p) => typeof p.overall === "number");
   const avg =
     rated.length > 0
@@ -23,14 +26,16 @@ function buildShareText({ teamName, formation, players }: ShareSquadInput): stri
     .map((p) => `${p.slotLabel}: ${p.name} (${p.overall})`)
     .join("\n");
 
-  return [
+  const base = [
     `${teamName} · Ultimate XI (${formation})`,
     `Team rating: ${avg}`,
     "",
     lineup,
-    "",
-    `Build yours at ${SHARE_URL}`,
   ].join("\n");
+
+  // Only append the URL for the clipboard fallback. When using the Web Share
+  // API we pass the link via the `url` field instead, so it isn't duplicated.
+  return includeUrl ? `${base}\n\nBuild yours at ${SHARE_URL}` : base;
 }
 
 /**
@@ -38,11 +43,10 @@ function buildShareText({ teamName, formation, players }: ShareSquadInput): stri
  * falling back to copying a summary to the clipboard.
  */
 export async function shareSquad(input: ShareSquadInput): Promise<ShareOutcome> {
-  const text = buildShareText(input);
   const title = `${input.teamName} · Ultimate XI`;
 
   if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-    const data: ShareData = { title, text, url: SHARE_URL };
+    const data: ShareData = { title, text: buildShareText(input, false), url: SHARE_URL };
     try {
       if (!navigator.canShare || navigator.canShare(data)) {
         await navigator.share(data);
@@ -58,7 +62,7 @@ export async function shareSquad(input: ShareSquadInput): Promise<ShareOutcome> 
 
   try {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      await navigator.clipboard.writeText(`${text}`);
+      await navigator.clipboard.writeText(buildShareText(input, true));
       return "copied";
     }
   } catch {

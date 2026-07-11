@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Check, RotateCcw, Share2, Users } from "lucide-react";
+import { Check, Loader2, RotateCcw, Share2, Users } from "lucide-react";
 import { FootballPitch } from "@/components/board/FootballPitch";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -14,6 +14,7 @@ import { getFormationSlots } from "@/lib/football/formations";
 import { getRatingColor } from "@/lib/football/ratings";
 import { getDraftResult, type DraftResult } from "@/lib/draft-result";
 import { shareSquad } from "@/lib/share";
+import { captureElementToBlob, shareOrDownloadImage } from "@/lib/capture";
 import type { DraftedPlayer } from "@/components/modal/PositionPickerModal";
 import type { ApiTeam } from "@/lib/football/types";
 import type { Position } from "@/lib/types";
@@ -189,7 +190,10 @@ export default function FootballResultsPage() {
   const [result, setResult] = useState<DraftResult | null>(null);
   const [activeSquad, setActiveSquad] = useState(0);
   const [showConfetti, setShowConfetti] = useState(true);
-  const [shareState, setShareState] = useState<"idle" | "copied" | "shared">("idle");
+  const [shareState, setShareState] = useState<
+    "idle" | "sharing" | "copied" | "shared" | "downloaded"
+  >("idle");
+  const pitchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const r = getDraftResult();
@@ -223,14 +227,42 @@ export default function FootballResultsPage() {
     result.teamNames?.[idx] || (isMulti ? `Player ${idx + 1}` : "My Team");
 
   const handleShare = async () => {
-    const outcome = await shareSquad({
-      teamName: labelFor(activeSquad),
-      formation: result.formation,
-      players: squad,
-    });
-    if (outcome === "shared" || outcome === "copied") {
-      setShareState(outcome);
-      setTimeout(() => setShareState("idle"), 2500);
+    if (shareState === "sharing") return;
+    const teamName = labelFor(activeSquad);
+    const caption = `${teamName} · Ultimate XI (${result.formation})`;
+
+    setShareState("sharing");
+    try {
+      if (pitchRef.current) {
+        const blob = await captureElementToBlob(pitchRef.current);
+        if (blob) {
+          const outcome = await shareOrDownloadImage(
+            blob,
+            `${teamName.replace(/\s+/g, "-").toLowerCase()}-xi.png`,
+            caption
+          );
+          if (outcome === "shared" || outcome === "downloaded") {
+            setShareState(outcome);
+            setTimeout(() => setShareState("idle"), 2500);
+            return;
+          }
+          if (outcome === "cancelled") {
+            setShareState("idle");
+            return;
+          }
+        }
+      }
+      const outcome = await shareSquad({
+        teamName,
+        formation: result.formation,
+        players: squad,
+      });
+      setShareState(outcome === "shared" || outcome === "copied" ? outcome : "idle");
+      if (outcome === "shared" || outcome === "copied") {
+        setTimeout(() => setShareState("idle"), 2500);
+      }
+    } catch {
+      setShareState("idle");
     }
   };
 
@@ -295,6 +327,7 @@ export default function FootballResultsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
         <motion.div
+          ref={pitchRef}
           initial={{ opacity: 0, scale: 0.97 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
@@ -354,11 +387,26 @@ export default function FootballResultsPage() {
           </Card>
 
           <div className="space-y-3 pt-2">
-            <Button glow className="w-full" onClick={handleShare}>
-              {shareState === "copied" ? (
+            <Button
+              glow
+              className="w-full"
+              onClick={handleShare}
+              disabled={shareState === "sharing"}
+            >
+              {shareState === "sharing" ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Preparing image…
+                </>
+              ) : shareState === "copied" ? (
                 <>
                   <Check className="w-4 h-4" />
                   Copied to clipboard
+                </>
+              ) : shareState === "downloaded" ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Saved image
                 </>
               ) : shareState === "shared" ? (
                 <>

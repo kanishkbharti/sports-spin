@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Check, RotateCcw, Share2 } from "lucide-react";
+import { Check, Loader2, RotateCcw, Share2 } from "lucide-react";
 import { FootballPitch } from "@/components/board/FootballPitch";
 import { Button } from "@/components/ui/Button";
 import { OverallRating } from "@/components/ui/OverallRating";
 import { shareSquad } from "@/lib/share";
+import { captureElementToBlob, shareOrDownloadImage } from "@/lib/capture";
 import type { DraftedPlayer } from "@/components/modal/PositionPickerModal";
 import type { ApiTeam } from "@/lib/football/types";
 import type { FormationSlot } from "@/lib/football/formations";
@@ -34,15 +35,46 @@ export function FifaSquadReveal({
       ? (assignments.reduce((s, p) => s + p.overall, 0) / assignments.length).toFixed(1)
       : "0";
 
-  const [shareState, setShareState] = useState<"idle" | "copied" | "shared">("idle");
+  const pitchRef = useRef<HTMLDivElement>(null);
+  const [shareState, setShareState] = useState<
+    "idle" | "sharing" | "copied" | "shared" | "downloaded"
+  >("idle");
 
   const handleShare = async () => {
+    if (shareState === "sharing") return;
     const stripped = title.replace(/(?:’s|'s)?\s*Ultimate XI$/i, "").trim();
     const teamName = !stripped || /^your$/i.test(stripped) ? "My Team" : stripped;
-    const outcome = await shareSquad({ teamName, formation, players: assignments });
-    if (outcome === "shared" || outcome === "copied") {
-      setShareState(outcome);
-      setTimeout(() => setShareState("idle"), 2500);
+    const caption = `${teamName} · Ultimate XI (${formation})`;
+
+    setShareState("sharing");
+    try {
+      if (pitchRef.current) {
+        const blob = await captureElementToBlob(pitchRef.current);
+        if (blob) {
+          const outcome = await shareOrDownloadImage(
+            blob,
+            `${teamName.replace(/\s+/g, "-").toLowerCase()}-xi.png`,
+            caption
+          );
+          if (outcome === "shared" || outcome === "downloaded") {
+            setShareState(outcome);
+            setTimeout(() => setShareState("idle"), 2500);
+            return;
+          }
+          if (outcome === "cancelled") {
+            setShareState("idle");
+            return;
+          }
+        }
+      }
+      // Fallback: share/copy a text summary.
+      const outcome = await shareSquad({ teamName, formation, players: assignments });
+      setShareState(outcome === "shared" || outcome === "copied" ? outcome : "idle");
+      if (outcome === "shared" || outcome === "copied") {
+        setTimeout(() => setShareState("idle"), 2500);
+      }
+    } catch {
+      setShareState("idle");
     }
   };
 
@@ -81,6 +113,7 @@ export function FifaSquadReveal({
 
       <div className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-10 pb-2 min-h-0">
         <motion.div
+          ref={pitchRef}
           initial={{ scale: 0.92, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.15, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
@@ -103,11 +136,21 @@ export function FifaSquadReveal({
             Edit Squad
           </Button>
         )}
-        <Button glow onClick={handleShare}>
-          {shareState === "copied" ? (
+        <Button glow onClick={handleShare} disabled={shareState === "sharing"}>
+          {shareState === "sharing" ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Preparing…
+            </>
+          ) : shareState === "copied" ? (
             <>
               <Check className="w-4 h-4" />
               Copied
+            </>
+          ) : shareState === "downloaded" ? (
+            <>
+              <Check className="w-4 h-4" />
+              Saved image
             </>
           ) : shareState === "shared" ? (
             <>
