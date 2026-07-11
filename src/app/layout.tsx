@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Syne } from "next/font/google";
 import { AppNav } from "@/components/layout/AppNav";
 import { DraftProvider } from "@/lib/draft-context";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <AppNav />
           <main className="pt-14">{children}</main>
         </DraftProvider>
+        <Analytics />
       </body>
     </html>
   );
