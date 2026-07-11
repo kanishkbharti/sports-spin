@@ -14,7 +14,7 @@ import { getStoredConfig, type DraftConfig } from "@/lib/draft-context";
 import { storeDraftResult } from "@/lib/draft-result";
 import { filterRealTeams } from "@/lib/football/team-filters";
 import { getFormationSlots } from "@/lib/football/formations";
-import { isClubLimitReached, nextDrafterIndex } from "@/lib/football/draft-rules";
+import { isClubLimitReached, drafterForPick } from "@/lib/football/draft-rules";
 import type { ApiTeam } from "@/lib/football/types";
 import type { Player, Position } from "@/lib/types";
 
@@ -51,6 +51,7 @@ export default function FootballSpinnerPage() {
   const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
   const [squads, setSquads] = useState<DraftedPlayer[][]>([[], []]);
   const [currentDrafter, setCurrentDrafter] = useState(0);
+  const [startDrafter, setStartDrafter] = useState(0);
   const [viewDrafter, setViewDrafter] = useState(0);
   const [highlightSlot, setHighlightSlot] = useState<string | null>(null);
   const [limitMessage, setLimitMessage] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export default function FootballSpinnerPage() {
   const slots = getFormationSlots(formation);
   const humanPlayers = config?.humanPlayers ?? 1;
   const maxFromClub = config?.maxFromClub ?? 3;
+  const snakeDraft = config?.snakeDraft ?? false;
   const isMulti = humanPlayers === 2;
 
   const teamNames = config?.teamNames ?? (isMulti ? ["Player 1", "Player 2"] : ["My Team"]);
@@ -70,6 +72,14 @@ export default function FootballSpinnerPage() {
   const activeAssignments = squads[currentDrafter] ?? [];
   const allAssignments = useMemo(() => squads.flat(), [squads]);
   const revealAssignments = squads[revealDrafter] ?? [];
+
+  // Only spin on teams the current drafter can still draft from. A team is
+  // dropped once they've hit the max-from-club/nation limit, so spins are
+  // never wasted on a maxed-out team.
+  const eligibleTeams = useMemo(
+    () => wheelTeams.filter((t) => !isClubLimitReached(activeAssignments, t.id, maxFromClub)),
+    [wheelTeams, activeAssignments, maxFromClub]
+  );
 
   useEffect(() => {
     setViewDrafter(currentDrafter);
@@ -104,9 +114,13 @@ export default function FootballSpinnerPage() {
 
     let nextTurn = currentDrafter;
     if (!everyoneComplete && isMulti) {
-      const alt = nextDrafterIndex(currentDrafter, humanPlayers);
-      // hand over to the next drafter who still has slots to fill
-      nextTurn = complete[alt] ? complete.findIndex((c) => !c) : alt;
+      const totalPicks = nextSquads.reduce((sum, a) => sum + a.length, 0);
+      nextTurn = drafterForPick(totalPicks, startDrafter, humanPlayers, snakeDraft);
+      // safety: never hand over to a drafter who is already full
+      if (complete[nextTurn]) {
+        const firstIncomplete = complete.findIndex((c) => !c);
+        if (firstIncomplete !== -1) nextTurn = firstIncomplete;
+      }
     }
 
     setSquads(nextSquads);
@@ -147,7 +161,25 @@ export default function FootballSpinnerPage() {
     setConfig(normalized);
     setWheelTeams(filterRealTeams(normalized.teams));
     setSquads(emptySquads(normalized.humanPlayers));
-    setCurrentDrafter(0);
+
+    // Decide who picks first. Random order draws a starting player; manual
+    // (and single player) always starts with Player 1.
+    const multi = normalized.humanPlayers === 2;
+    const start =
+      multi && normalized.draftOrder === "random" ? Math.floor(Math.random() * 2) : 0;
+    setStartDrafter(start);
+    setCurrentDrafter(start);
+
+    if (multi) {
+      const names = normalized.teamNames ?? ["Player 1", "Player 2"];
+      const startLabel = names[start] || `Player ${start + 1}`;
+      setNoticeMessage(
+        normalized.draftOrder === "random"
+          ? `Random draw: ${startLabel} picks first.${normalized.snakeDraft ? " Snake order is on." : ""}`
+          : `${startLabel} picks first.${normalized.snakeDraft ? " Snake order is on." : ""}`
+      );
+    }
+
     setReady(true);
   }, [router]);
 
@@ -236,6 +268,7 @@ export default function FootballSpinnerPage() {
   const displayPicks = squads[picksDrafter] ?? [];
   const squadFull = activeAssignments.length >= slots.length;
   const gkFilled = activeAssignments.some((a) => a.slotId === "GK");
+  const noEligibleTeams = !squadFull && eligibleTeams.length === 0;
 
   return (
     <>
@@ -312,14 +345,20 @@ export default function FootballSpinnerPage() {
 
           <div className="flex items-center justify-center py-4 min-h-[320px] max-h-[380px]">
             <DraftWheel
-              teams={wheelTeams}
+              teams={eligibleTeams.length > 0 ? eligibleTeams : wheelTeams}
               onSpinComplete={handleSpinComplete}
-              disabled={squadFull}
+              disabled={squadFull || noEligibleTeams}
             />
           </div>
           {squadFull && (
             <p className="text-center text-xs text-text-muted -mt-2 mb-2">
               {labelFor(currentDrafter)}&apos;s XI complete. Remove a player to spin again
+            </p>
+          )}
+          {noEligibleTeams && (
+            <p className="text-center text-xs text-warning -mt-2 mb-2">
+              Every remaining team is maxed out for {labelFor(currentDrafter)}. Raise the
+              max-per-team limit or add more teams to keep drafting.
             </p>
           )}
 

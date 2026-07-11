@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, Loader2, Search } from "lucide-react";
+import { Check, ChevronRight, Loader2, Search, Shuffle, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -14,6 +14,27 @@ import { storeConfig } from "@/lib/draft-context";
 import { filterRealTeams } from "@/lib/football/team-filters";
 import type { ApiTeam } from "@/lib/football/types";
 import type { FootballDataType, LeagueCode } from "@/lib/football/constants";
+
+const NAME_ADJECTIVES = [
+  "Galactic", "Thunder", "Royal", "Phantom", "Crimson", "Azure", "Iron",
+  "Golden", "Savage", "Cosmic", "Rapid", "Mighty", "Electric", "Shadow",
+];
+const NAME_NOUNS = [
+  "XI", "United", "Rovers", "Galácticos", "Wanderers", "Titans", "Kings",
+  "Strikers", "Legends", "Dragons", "Wolves", "Empire", "Rangers", "Vipers",
+];
+
+function pick<T>(arr: readonly T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomTeamName(exclude?: string): string {
+  let name = "";
+  do {
+    name = `${pick(NAME_ADJECTIVES)} ${pick(NAME_NOUNS)}`;
+  } while (name === exclude);
+  return name;
+}
 
 export default function FootballCreatePage() {
   const router = useRouter();
@@ -31,6 +52,7 @@ export default function FootballCreatePage() {
   const [maxFromClub, setMaxFromClub] = useState<number | "unlimited">(3);
   const [draftOrder, setDraftOrder] = useState<"random" | "manual">("random");
   const [snakeDraft, setSnakeDraft] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
@@ -86,9 +108,11 @@ export default function FootballCreatePage() {
       ? teamNameA.trim().length > 0
       : teamNameA.trim().length > 0 && teamNameB.trim().length > 0);
 
-  const handleContinue = () => {
+  // Core: persist config with explicit names/formation and go to the draft.
+  const proceed = (names: string[], formationValue: string) => {
     const selected = teams.filter((t) => selectedTeams.includes(t.id));
-    if (selected.length === 0 || !canContinue) return;
+    if (selected.length === 0 || loading) return;
+    if (names.some((n) => !n.trim())) return;
 
     storeConfig({
       sport: "football",
@@ -96,10 +120,10 @@ export default function FootballCreatePage() {
       league,
       selectedTeamIds: selectedTeams,
       teams: selected,
-      formation,
+      formation: formationValue,
       draftMode,
       humanPlayers: draftMode === "multi" ? 2 : 1,
-      teamNames,
+      teamNames: names,
       maxFromClub,
       draftOrder,
       snakeDraft,
@@ -107,8 +131,46 @@ export default function FootballCreatePage() {
     router.push("/football/spinner");
   };
 
+  const handleContinue = () => {
+    if (!canContinue) return;
+    proceed(teamNames, formation);
+  };
+
+  // Mobile CTA: continue if valid, otherwise open the quick-setup sheet.
+  const handleMobileContinue = () => {
+    if (canContinue) {
+      proceed(teamNames, formation);
+    } else {
+      setSheetOpen(true);
+    }
+  };
+
+  const handleSheetStart = () => {
+    if (!canContinue) return;
+    proceed(teamNames, formation);
+    setSheetOpen(false);
+  };
+
+  // Auto-generate team name(s) + a random formation, then jump straight in.
+  const autoGenerateAndStart = () => {
+    const nameA = randomTeamName();
+    const nameB = draftMode === "multi" ? randomTeamName(nameA) : "";
+    const nextFormation = pick(FORMATIONS);
+
+    setTeamNameA(nameA);
+    setTeamNameB(nameB);
+    setFormation(nextFormation);
+
+    const names = draftMode === "multi" ? [nameA, nameB] : [nameA];
+    proceed(names, nextFormation);
+    setSheetOpen(false);
+  };
+
+  const modeLabel = draftMode === "multi" ? "2 Players" : "Single";
+  const maxLabel = maxFromClub === "unlimited" ? "∞" : maxFromClub;
+
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-8">
+    <div className="max-w-[1440px] mx-auto px-6 py-8 pb-28 lg:pb-8">
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
         <p className="text-xs text-accent font-medium uppercase tracking-wider mb-1">Football</p>
         <h1 className="font-display font-bold text-2xl sm:text-3xl text-text-primary">Create Draft</h1>
@@ -395,12 +457,25 @@ export default function FootballCreatePage() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-text-muted mt-2 leading-relaxed">
+                  {draftMode === "single"
+                    ? "Applies to 2-player drafts."
+                    : draftOrder === "random"
+                      ? "We'll randomly draw who spins first."
+                      : "Player 1 spins first."}
+                </p>
               </div>
 
               <div className="flex items-center justify-between py-2">
                 <div>
                   <p className="text-sm font-medium text-text-primary">Snake Draft</p>
-                  <p className="text-xs text-text-muted">Reverse pick order each round</p>
+                  <p className="text-xs text-text-muted">
+                    {draftMode === "single"
+                      ? "Reverses pick order each round (2-player)"
+                      : snakeDraft
+                        ? "Order reverses each round: P1, P2, P2, P1…"
+                        : "Straight order each round: P1, P2, P1, P2…"}
+                  </p>
                 </div>
                 <button
                   onClick={() => setSnakeDraft(!snakeDraft)}
@@ -430,6 +505,133 @@ export default function FootballCreatePage() {
           </Card>
         </div>
       </div>
+
+      {/* Mobile sticky action bar — keeps draft rules summary + Continue in reach */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-[1440px] mx-auto flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">
+              Draft Rules
+            </p>
+            <p className="text-xs text-text-secondary truncate">
+              {formation} · {modeLabel} · Max {maxLabel} · {selectedTeams.length} teams
+            </p>
+          </div>
+          <Button
+            glow
+            disabled={selectedTeams.length === 0 || loading}
+            onClick={handleMobileContinue}
+            className="shrink-0"
+          >
+            Continue
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Mobile quick-setup sheet — shown when Continue is tapped without a team name */}
+      <AnimatePresence>
+        {sheetOpen && (
+          <div className="lg:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSheetOpen(false)}
+              className="fixed inset-0 bg-bg/70 backdrop-blur-sm z-50"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 32, stiffness: 320 }}
+              className="fixed bottom-0 inset-x-0 z-50 glass-strong border-t border-border-strong rounded-t-[22px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+            >
+              <div className="mx-auto w-10 h-1 rounded-full bg-border-strong mb-4" />
+              <div className="flex items-center justify-between mb-1">
+                <h3 className="font-display font-bold text-lg">Finish setup</h3>
+                <button
+                  onClick={() => setSheetOpen(false)}
+                  className="p-1 text-text-muted hover:text-text-primary transition-colors cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs text-text-muted mb-4">
+                Name your {draftMode === "multi" ? "teams" : "team"} and pick a formation, or
+                let us generate them.
+              </p>
+
+              <label className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 block">
+                {draftMode === "multi" ? "Team Names" : "Team Name"}
+              </label>
+              <div className="space-y-2 mb-4">
+                <div className="relative">
+                  {draftMode === "multi" && (
+                    <span
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
+                      style={{ background: "#00D084" }}
+                    />
+                  )}
+                  <Input
+                    placeholder={draftMode === "multi" ? "Player 1 team name" : "e.g. Dream XI"}
+                    value={teamNameA}
+                    onChange={(e) => setTeamNameA(e.target.value)}
+                    maxLength={24}
+                    className={draftMode === "multi" ? "pl-7" : ""}
+                  />
+                </div>
+                {draftMode === "multi" && (
+                  <div className="relative">
+                    <span
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full"
+                      style={{ background: "#4F7CFF" }}
+                    />
+                    <Input
+                      placeholder="Player 2 team name"
+                      value={teamNameB}
+                      onChange={(e) => setTeamNameB(e.target.value)}
+                      maxLength={24}
+                      className="pl-7"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <label className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 block">
+                Formation
+              </label>
+              <div className="flex flex-wrap gap-2 mb-5">
+                {FORMATIONS.map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFormation(f)}
+                    className={`px-3.5 py-2 rounded-[10px] text-sm font-medium transition-all cursor-pointer ${
+                      formation === f
+                        ? "bg-accent text-bg"
+                        : "bg-surface-elevated text-text-secondary border border-border"
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <Button glow disabled={!canContinue} onClick={handleSheetStart}>
+                  Start Draft
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+                <Button variant="secondary" onClick={autoGenerateAndStart}>
+                  <Shuffle className="w-4 h-4" />
+                  Surprise me
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

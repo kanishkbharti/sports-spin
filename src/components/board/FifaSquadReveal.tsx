@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { RotateCcw, Share2 } from "lucide-react";
+import { Check, RotateCcw, Share2 } from "lucide-react";
 import { FootballPitch } from "@/components/board/FootballPitch";
 import { Button } from "@/components/ui/Button";
 import { OverallRating } from "@/components/ui/OverallRating";
+import { shareSquad } from "@/lib/share";
 import type { DraftedPlayer } from "@/components/modal/PositionPickerModal";
 import type { ApiTeam } from "@/lib/football/types";
 import type { FormationSlot } from "@/lib/football/formations";
@@ -31,6 +33,18 @@ export function FifaSquadReveal({
     assignments.length > 0
       ? (assignments.reduce((s, p) => s + p.overall, 0) / assignments.length).toFixed(1)
       : "0";
+
+  const [shareState, setShareState] = useState<"idle" | "copied" | "shared">("idle");
+
+  const handleShare = async () => {
+    const stripped = title.replace(/(?:’s|'s)?\s*Ultimate XI$/i, "").trim();
+    const teamName = !stripped || /^your$/i.test(stripped) ? "My Team" : stripped;
+    const outcome = await shareSquad({ teamName, formation, players: assignments });
+    if (outcome === "shared" || outcome === "copied") {
+      setShareState(outcome);
+      setTimeout(() => setShareState("idle"), 2500);
+    }
+  };
 
   return (
     <motion.div
@@ -89,9 +103,23 @@ export function FifaSquadReveal({
             Edit Squad
           </Button>
         )}
-        <Button glow>
-          <Share2 className="w-4 h-4" />
-          Share Squad
+        <Button glow onClick={handleShare}>
+          {shareState === "copied" ? (
+            <>
+              <Check className="w-4 h-4" />
+              Copied
+            </>
+          ) : shareState === "shared" ? (
+            <>
+              <Check className="w-4 h-4" />
+              Shared
+            </>
+          ) : (
+            <>
+              <Share2 className="w-4 h-4" />
+              Share Squad
+            </>
+          )}
         </Button>
         <Link href="/football/results">
           <Button variant="ghost">View Results</Button>

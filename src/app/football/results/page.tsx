@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { RotateCcw, Share2, Users } from "lucide-react";
+import { Check, RotateCcw, Share2, Users } from "lucide-react";
 import { FootballPitch } from "@/components/board/FootballPitch";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -13,6 +13,7 @@ import { OverallRating } from "@/components/ui/OverallRating";
 import { getFormationSlots } from "@/lib/football/formations";
 import { getRatingColor } from "@/lib/football/ratings";
 import { getDraftResult, type DraftResult } from "@/lib/draft-result";
+import { shareSquad } from "@/lib/share";
 import type { DraftedPlayer } from "@/components/modal/PositionPickerModal";
 import type { ApiTeam } from "@/lib/football/types";
 import type { Position } from "@/lib/types";
@@ -188,6 +189,7 @@ export default function FootballResultsPage() {
   const [result, setResult] = useState<DraftResult | null>(null);
   const [activeSquad, setActiveSquad] = useState(0);
   const [showConfetti, setShowConfetti] = useState(true);
+  const [shareState, setShareState] = useState<"idle" | "copied" | "shared">("idle");
 
   useEffect(() => {
     const r = getDraftResult();
@@ -219,6 +221,18 @@ export default function FootballResultsPage() {
     result.dataType === "club" ? "Club Distribution" : "Country Distribution";
   const labelFor = (idx: number) =>
     result.teamNames?.[idx] || (isMulti ? `Player ${idx + 1}` : "My Team");
+
+  const handleShare = async () => {
+    const outcome = await shareSquad({
+      teamName: labelFor(activeSquad),
+      formation: result.formation,
+      players: squad,
+    });
+    if (outcome === "shared" || outcome === "copied") {
+      setShareState(outcome);
+      setTimeout(() => setShareState("idle"), 2500);
+    }
+  };
 
   return (
     <div className="relative max-w-[1200px] mx-auto px-6 py-8">
@@ -340,9 +354,23 @@ export default function FootballResultsPage() {
           </Card>
 
           <div className="space-y-3 pt-2">
-            <Button glow className="w-full">
-              <Share2 className="w-4 h-4" />
-              Share Squad
+            <Button glow className="w-full" onClick={handleShare}>
+              {shareState === "copied" ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Copied to clipboard
+                </>
+              ) : shareState === "shared" ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Shared
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-4 h-4" />
+                  Share Squad
+                </>
+              )}
             </Button>
             <Link href="/football/create" className="block">
               <Button variant="ghost" className="w-full">
