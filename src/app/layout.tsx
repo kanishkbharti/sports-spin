@@ -57,7 +57,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${syne.variable}`}>
-      <body className="min-h-screen bg-bg antialiased">
+      <body className="min-h-[100dvh] bg-bg antialiased">
         <DraftProvider>
           <AppNav />
           <main className="pt-14">{children}</main>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, AlertCircle, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/Input";
 import { PlayerCard } from "@/components/ui/PlayerCard";
+import { Button } from "@/components/ui/Button";
 import { TeamCrest } from "@/components/ui/TeamBadge";
 import type { ApiTeam } from "@/lib/football/types";
 import type { Player, Position } from "@/lib/types";
@@ -34,11 +35,8 @@ export function PlayerSelectionModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!open || !team) return;
-
-    setSearch("");
-    setFilter("All");
+  const loadPlayers = useCallback(async () => {
+    if (!team) return;
     setLoading(true);
     setError(null);
 
@@ -49,15 +47,24 @@ export function PlayerSelectionModal({
       teamName: team.name,
     });
 
-    fetch(`/api/football?${params}`, { cache: "no-store" })
-      .then((res) => res.json())
-      .then((json) => {
-        if (!json.success) throw new Error(json.error ?? "Failed to load players");
-        setPlayers(json.data);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load players"))
-      .finally(() => setLoading(false));
-  }, [open, team]);
+    try {
+      const res = await fetch(`/api/football?${params}`, { cache: "no-store" });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error("failed");
+      setPlayers(json.data);
+    } catch {
+      setError("Couldn't load this squad. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [team]);
+
+  useEffect(() => {
+    if (!open || !team) return;
+    setSearch("");
+    setFilter("All");
+    loadPlayers();
+  }, [open, team, loadPlayers]);
 
   if (!team) return null;
 
@@ -134,8 +141,20 @@ export function PlayerSelectionModal({
                   <span className="text-sm">Fetching live squad data...</span>
                 </div>
               ) : error ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-error">{error}</p>
+                <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-6">
+                  <div className="w-12 h-12 rounded-full bg-error/10 flex items-center justify-center">
+                    <AlertCircle className="w-6 h-6 text-error" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-text-primary mb-1">
+                      Something went wrong
+                    </p>
+                    <p className="text-xs text-text-muted">{error}</p>
+                  </div>
+                  <Button variant="secondary" size="sm" onClick={loadPlayers}>
+                    <RotateCcw className="w-4 h-4" />
+                    Try again
+                  </Button>
                 </div>
               ) : filtered.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

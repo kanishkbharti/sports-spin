@@ -14,7 +14,7 @@ import { getFormationSlots } from "@/lib/football/formations";
 import { getRatingColor } from "@/lib/football/ratings";
 import { getDraftResult, type DraftResult } from "@/lib/draft-result";
 import { shareSquad } from "@/lib/share";
-import { captureElementToBlob, shareOrDownloadImage } from "@/lib/capture";
+import { captureElementToBlob, shareOrDownloadImage, fetchServerShareImage } from "@/lib/capture";
 import type { DraftedPlayer } from "@/components/modal/PositionPickerModal";
 import type { ApiTeam } from "@/lib/football/types";
 import type { Position } from "@/lib/types";
@@ -211,7 +211,7 @@ export default function FootballResultsPage() {
 
   if (!result) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)] text-text-muted">
+      <div className="flex items-center justify-center min-h-[calc(100dvh-3.5rem)] text-text-muted">
         <span className="text-sm">Loading results...</span>
       </div>
     );
@@ -232,24 +232,33 @@ export default function FootballResultsPage() {
     const caption = `${teamName} · Ultimate XI (${result.formation})`;
 
     setShareState("sharing");
+    const filename = `${teamName.replace(/\s+/g, "-").toLowerCase()}-xi.png`;
     try {
-      if (pitchRef.current) {
-        const blob = await captureElementToBlob(pitchRef.current);
-        if (blob) {
-          const outcome = await shareOrDownloadImage(
-            blob,
-            `${teamName.replace(/\s+/g, "-").toLowerCase()}-xi.png`,
-            caption
-          );
-          if (outcome === "shared" || outcome === "downloaded") {
-            setShareState(outcome);
-            setTimeout(() => setShareState("idle"), 2500);
-            return;
-          }
-          if (outcome === "cancelled") {
-            setShareState("idle");
-            return;
-          }
+      let blob = await fetchServerShareImage({
+        teamName,
+        formation: result.formation,
+        players: squad.map((p) => ({
+          name: p.name,
+          overall: p.overall,
+          position: p.position,
+          slotId: p.slotId,
+          slotLabel: p.slotLabel,
+          photo: p.photo,
+        })),
+      });
+      if (!blob && pitchRef.current) {
+        blob = await captureElementToBlob(pitchRef.current);
+      }
+      if (blob) {
+        const outcome = await shareOrDownloadImage(blob, filename, caption);
+        if (outcome === "shared" || outcome === "downloaded") {
+          setShareState(outcome);
+          setTimeout(() => setShareState("idle"), 2500);
+          return;
+        }
+        if (outcome === "cancelled") {
+          setShareState("idle");
+          return;
         }
       }
       const outcome = await shareSquad({

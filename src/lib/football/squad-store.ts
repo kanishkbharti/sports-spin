@@ -34,8 +34,14 @@ export function readStoredSquad(teamId: string): StoredSquad | null {
 }
 
 export function writeStoredSquad(squad: StoredSquad): void {
-  mkdirSync(SQUADS_DIR, { recursive: true });
-  writeFileSync(squadPath(squad.teamId), JSON.stringify(squad, null, 2));
+  // Best-effort disk cache. Serverless/production filesystems are read-only
+  // (EROFS), so never let a failed write break the request.
+  try {
+    mkdirSync(SQUADS_DIR, { recursive: true });
+    writeFileSync(squadPath(squad.teamId), JSON.stringify(squad, null, 2));
+  } catch {
+    // ignore: squad is already resolved in-memory and served regardless
+  }
 }
 
 export function storedSquadPlayers(teamId: string): ApiPlayer[] | null {

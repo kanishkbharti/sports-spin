@@ -48,6 +48,42 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export interface ShareImagePlayer {
+  name: string;
+  overall: number;
+  position: string;
+  slotId: string;
+  slotLabel: string;
+  photo?: string | null;
+}
+
+export interface ShareImagePayload {
+  teamName: string;
+  formation: string;
+  players: ShareImagePlayer[];
+}
+
+/**
+ * Renders the squad server-side (Satori) into a PNG. This is far more reliable
+ * than DOM-to-image on iOS Safari, which frequently produces blank captures.
+ */
+export async function fetchServerShareImage(
+  payload: ShareImagePayload
+): Promise<Blob | null> {
+  try {
+    const res = await fetch("/api/share-image", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return blob.size > 2048 ? blob : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function captureElementToBlob(
   node: HTMLElement
 ): Promise<Blob | null> {

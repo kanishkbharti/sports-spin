@@ -255,7 +255,7 @@ export default function FootballSpinnerPage() {
 
   if (!ready || !config) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)] gap-3 text-text-muted">
+      <div className="flex items-center justify-center min-h-[calc(100dvh-3.5rem)] gap-3 text-text-muted">
         <Loader2 className="w-5 h-5 animate-spin" />
         <span className="text-sm">Loading draft...</span>
       </div>
@@ -283,7 +283,7 @@ export default function FootballSpinnerPage() {
         />
       )}
 
-      <div className={`max-w-[1440px] mx-auto px-4 sm:px-6 py-6 min-h-[calc(100vh-3.5rem)] overflow-x-hidden ${showFifaReveal ? "hidden" : ""}`}>
+      <div className={`max-w-[1440px] mx-auto px-4 sm:px-6 py-6 min-h-[calc(100dvh-3.5rem)] overflow-x-hidden ${showFifaReveal ? "hidden" : ""}`}>
       <div className="flex items-center justify-between mb-6 gap-4">
         <div className="min-w-0">
           <p className="text-xs text-accent font-medium uppercase tracking-wider mb-1">Live Draft</p>

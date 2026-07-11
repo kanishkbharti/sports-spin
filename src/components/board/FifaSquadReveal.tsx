@@ -8,7 +8,7 @@ import { FootballPitch } from "@/components/board/FootballPitch";
 import { Button } from "@/components/ui/Button";
 import { OverallRating } from "@/components/ui/OverallRating";
 import { shareSquad } from "@/lib/share";
-import { captureElementToBlob, shareOrDownloadImage } from "@/lib/capture";
+import { captureElementToBlob, shareOrDownloadImage, fetchServerShareImage } from "@/lib/capture";
 import type { DraftedPlayer } from "@/components/modal/PositionPickerModal";
 import type { ApiTeam } from "@/lib/football/types";
 import type { FormationSlot } from "@/lib/football/formations";
@@ -47,24 +47,34 @@ export function FifaSquadReveal({
     const caption = `${teamName} · Ultimate XI (${formation})`;
 
     setShareState("sharing");
+    const filename = `${teamName.replace(/\s+/g, "-").toLowerCase()}-xi.png`;
     try {
-      if (pitchRef.current) {
-        const blob = await captureElementToBlob(pitchRef.current);
-        if (blob) {
-          const outcome = await shareOrDownloadImage(
-            blob,
-            `${teamName.replace(/\s+/g, "-").toLowerCase()}-xi.png`,
-            caption
-          );
-          if (outcome === "shared" || outcome === "downloaded") {
-            setShareState(outcome);
-            setTimeout(() => setShareState("idle"), 2500);
-            return;
-          }
-          if (outcome === "cancelled") {
-            setShareState("idle");
-            return;
-          }
+      // Prefer a server-rendered PNG (reliable on iOS), fall back to DOM capture.
+      let blob = await fetchServerShareImage({
+        teamName,
+        formation,
+        players: assignments.map((p) => ({
+          name: p.name,
+          overall: p.overall,
+          position: p.position,
+          slotId: p.slotId,
+          slotLabel: p.slotLabel,
+          photo: p.photo,
+        })),
+      });
+      if (!blob && pitchRef.current) {
+        blob = await captureElementToBlob(pitchRef.current);
+      }
+      if (blob) {
+        const outcome = await shareOrDownloadImage(blob, filename, caption);
+        if (outcome === "shared" || outcome === "downloaded") {
+          setShareState(outcome);
+          setTimeout(() => setShareState("idle"), 2500);
+          return;
+        }
+        if (outcome === "cancelled") {
+          setShareState("idle");
+          return;
         }
       }
       // Fallback: share/copy a text summary.
@@ -82,7 +92,7 @@ export function FifaSquadReveal({
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-50 bg-bg flex flex-col overflow-hidden"
+      className="fixed inset-x-0 top-0 h-[100dvh] z-50 bg-bg flex flex-col overflow-hidden"
     >
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,208,132,0.12),transparent_60%)]" />

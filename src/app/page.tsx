@@ -155,7 +155,7 @@ export default function HomePage() {
   const comingSoon = SPORTS.filter((s) => s.status === "coming_soon");
 
   return (
-    <div className="relative min-h-[calc(100vh-3.5rem)] overflow-hidden noise-overlay">
+    <div className="relative min-h-[calc(100dvh-3.5rem)] overflow-hidden noise-overlay">
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/3 left-1/3 w-[500px] h-[500px] rounded-full bg-accent/4 blur-[120px]" />
         <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full bg-secondary/4 blur-[100px]" />
