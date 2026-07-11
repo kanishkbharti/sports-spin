@@ -3,6 +3,7 @@ import { Inter, Syne } from "next/font/google";
 import { AppNav } from "@/components/layout/AppNav";
 import { DraftProvider } from "@/lib/draft-context";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const inter = Inter({
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="pt-14">{children}</main>
         </DraftProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
