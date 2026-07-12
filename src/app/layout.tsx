@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Syne } from "next/font/google";
 import { AppNav } from "@/components/layout/AppNav";
+import { Footer } from "@/components/layout/Footer";
 import { DraftProvider } from "@/lib/draft-context";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -61,6 +62,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <DraftProvider>
           <AppNav />
           <main className="pt-14">{children}</main>
+          <Footer />
         </DraftProvider>
         <Analytics />
         <SpeedInsights />
