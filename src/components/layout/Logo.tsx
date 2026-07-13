@@ -27,11 +27,11 @@ export function Logo({ size = 32, className }: LogoProps) {
           y2="56"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="#00D084" />
-          <stop offset="1" stopColor="#4F7CFF" />
+          <stop stopColor="#4ADE80" />
+          <stop offset="1" stopColor="#10B981" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="16" fill="#0B0F17" />
+      <rect width="64" height="64" rx="16" fill="#06120A" />
       <rect
         x="0.75"
         y="0.75"
@@ -39,16 +39,16 @@ export function Logo({ size = 32, className }: LogoProps) {
         height="62.5"
         rx="15.25"
         stroke="url(#ssf-ring)"
-        strokeOpacity="0.35"
+        strokeOpacity="0.5"
         strokeWidth="1.5"
       />
       <g transform="rotate(-18 32 32)">
-        <path d="M32 32 L50 32 A18 18 0 0 1 32 50 Z" fill="#00D084" />
-        <path d="M32 32 L32 50 A18 18 0 0 1 14 32 Z" fill="#4F7CFF" />
-        <path d="M32 32 L14 32 A18 18 0 0 1 32 14 Z" fill="#FFB547" />
-        <path d="M32 32 L32 14 A18 18 0 0 1 50 32 Z" fill="#00A86B" />
-        <circle cx="32" cy="32" r="18" stroke="#0B0F17" strokeWidth="2.5" fill="none" />
-        <circle cx="32" cy="32" r="7.5" fill="#0B0F17" />
+        <path d="M32 32 L50 32 A18 18 0 0 1 32 50 Z" fill="#4ADE80" />
+        <path d="M32 32 L32 50 A18 18 0 0 1 14 32 Z" fill="#10B981" />
+        <path d="M32 32 L14 32 A18 18 0 0 1 32 14 Z" fill="#F5C451" />
+        <path d="M32 32 L32 14 A18 18 0 0 1 50 32 Z" fill="#22C55E" />
+        <circle cx="32" cy="32" r="18" stroke="#06120A" strokeWidth="2.5" fill="none" />
+        <circle cx="32" cy="32" r="7.5" fill="#06120A" />
         <circle cx="32" cy="32" r="3" fill="#FFFFFF" />
       </g>
       <path d="M32 6 L37 15 H27 Z" fill="#FFFFFF" />

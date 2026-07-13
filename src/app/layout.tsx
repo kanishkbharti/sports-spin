@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Syne } from "next/font/google";
+import { Inter, Archivo, Archivo_Black } from "next/font/google";
 import { AppNav } from "@/components/layout/AppNav";
 import { Footer } from "@/components/layout/Footer";
 import { DraftProvider } from "@/lib/draft-context";
@@ -13,11 +13,18 @@ const inter = Inter({
   display: "swap",
 });
 
-const syne = Syne({
+const archivo = Archivo({
   subsets: ["latin"],
-  variable: "--font-syne",
+  variable: "--font-archivo",
   display: "swap",
-  weight: ["600", "700", "800"],
+  weight: ["500", "600", "700", "800", "900"],
+});
+
+const archivoBlack = Archivo_Black({
+  subsets: ["latin"],
+  variable: "--font-archivo-black",
+  display: "swap",
+  weight: "400",
 });
 
 const SITE_URL = "https://trysquadr.com";
@@ -57,11 +64,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${syne.variable}`}>
+    <html
+      lang="en"
+      className={`${inter.variable} ${archivo.variable} ${archivoBlack.variable}`}
+    >
       <body className="min-h-[100dvh] bg-bg antialiased">
         <DraftProvider>
           <AppNav />
-          <main className="pt-14">{children}</main>
+          <main className="relative z-10 pt-14">{children}</main>
           <Footer />
         </DraftProvider>
         <Analytics />

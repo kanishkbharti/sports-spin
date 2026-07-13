@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -53,6 +53,21 @@ export default function FootballCreatePage() {
   const [draftOrder, setDraftOrder] = useState<"random" | "manual">("random");
   const [snakeDraft, setSnakeDraft] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Mobile: hide the sticky Continue bar once >10% of the Draft Rules panel is on screen
+  const rulesRef = useRef<HTMLDivElement>(null);
+  const [rulesVisible, setRulesVisible] = useState(false);
+
+  useEffect(() => {
+    const el = rulesRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setRulesVisible(entry.intersectionRatio > 0.1),
+      { threshold: [0, 0.1, 0.25, 0.5, 1] }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   const loadTeams = useCallback(async () => {
     setLoading(true);
@@ -325,7 +340,7 @@ export default function FootballCreatePage() {
         </div>
 
         {/* Rules sidebar */}
-        <div className="lg:sticky lg:top-20 lg:self-start">
+        <div ref={rulesRef} className="lg:sticky lg:top-20 lg:self-start">
           <Card className="glass-strong">
             <CardHeader>
               <h2 className="font-display font-bold text-lg">Draft Rules</h2>
@@ -506,8 +521,15 @@ export default function FootballCreatePage() {
         </div>
       </div>
 
-      {/* Mobile sticky action bar — keeps draft rules summary + Continue in reach */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      {/* Mobile sticky action bar — keeps draft rules summary + Continue in reach.
+          Hidden once the in-panel Continue button scrolls into view. */}
+      <div
+        className={`lg:hidden fixed bottom-0 inset-x-0 z-40 glass-strong border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-all duration-300 ${
+          rulesVisible
+            ? "translate-y-full opacity-0 pointer-events-none"
+            : "translate-y-0 opacity-100"
+        }`}
+      >
         <div className="max-w-[1440px] mx-auto flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">

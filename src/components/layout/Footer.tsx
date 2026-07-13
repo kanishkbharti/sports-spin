@@ -1,6 +1,6 @@
 export function Footer() {
   return (
-    <footer className="border-t border-border glass-strong">
+    <footer className="relative z-10 border-t border-border glass-strong">
       <div className="max-w-[1440px] mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <p className="text-xs text-text-muted">
           &copy; {new Date().getFullYear()} Squadr. Spin, draft, forge your ultimate XI.

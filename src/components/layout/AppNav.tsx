@@ -8,9 +8,6 @@ import { Logo } from "./Logo";
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard" },
   { href: "/football/create", label: "Football" },
-  { href: "/football/spinner", label: "Spinner" },
-  { href: "/football/board", label: "Board" },
-  { href: "/football/results", label: "Results" },
 ];
 
 export function AppNav() {
