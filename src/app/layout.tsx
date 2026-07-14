@@ -71,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-[100dvh] bg-bg antialiased">
         <DraftProvider>
           <AppNav />
-          <main className="relative z-10 pt-14">{children}</main>
+          <main className="relative pt-14">{children}</main>
           <Footer />
         </DraftProvider>
         <Analytics />

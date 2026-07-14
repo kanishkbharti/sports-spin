@@ -1,6 +1,25 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+
+const HIDDEN_PREFIXES = [
+  "/football/spinner",
+  "/football/board",
+  "/football/results",
+  "/spinner",
+  "/board",
+  "/results",
+];
+
 export function Footer() {
+  const pathname = usePathname();
+  const hide = HIDDEN_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+  if (hide) return null;
+
   return (
-    <footer className="relative z-10 border-t border-border glass-strong">
+    <footer className="relative z-[1] border-t border-border glass-strong">
       <div className="max-w-[1440px] mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-6">
         <p className="text-xs text-text-muted">
           &copy; {new Date().getFullYear()} Squadr. Spin, draft, forge your ultimate XI.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 
 interface SafeImageProps {
   src: string;
@@ -21,11 +21,13 @@ export function SafeImage({
   height,
   fill,
 }: SafeImageProps) {
-  const [currentSrc, setCurrentSrc] = useState(src);
+  // Track which src failed — derive display URL so prop changes always show the new image.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const currentSrc = failedSrc === src ? fallback : src;
 
-  const handleError = useCallback(() => {
-    setCurrentSrc((prev) => (prev === fallback ? prev : fallback));
-  }, [fallback]);
+  const handleError = () => {
+    setFailedSrc(src);
+  };
 
   if (fill) {
     return (

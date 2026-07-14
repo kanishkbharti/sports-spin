@@ -129,6 +129,7 @@ export function FootballPitch({
                     >
                       {photoUrl && fallback ? (
                         <SafeImage
+                          key={player.id}
                           src={photoUrl}
                           fallback={fallback}
                           alt={player.name}
